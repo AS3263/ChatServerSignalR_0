@@ -32,17 +32,29 @@ public class ChatHub : Hub
         return Task.FromResult(messages);// returns msg history
     }
 
-   public override async Task OnConnectedAsync()
-{
-    await Clients.Caller.SendAsync("ReceiveMessageHistory", messages); // Send history to the new client
+    public async Task NotifyNewClientJoin(string username)
+    {
+        string notification = $"{username} has joined the chat!";
+        await Clients.All.SendAsync("NotifyNewClient", notification);
+    }
+    public override async Task OnConnectedAsync()
+    {
+        // Notify the newly connected client with the chat history
+        await Clients.Caller.SendAsync("ReceiveMessageHistory", messages);
 
-    await Clients.Caller.SendAsync("ReceiveMessage", "System", "Connected to chat server!");// Notify the new client that they are connected
+        // Notify the newly connected client that they are successfully connected
+        string welcomeMessage = $"Welcome to the chat, Client {Context.ConnectionId}!";
+        await Clients.Caller.SendAsync("ReceiveMessage", "System", welcomeMessage);
 
-        string joinMessage = $"Client {Context.ConnectionId} has joined the chat!";// Send the "Client {ConnectionId} has joined" message to all clients
-        await Clients.All.SendAsync("ReceiveJoinMessage", joinMessage);
+        // Notify all other clients about the new connection
+        string joinNotification = $"A new user (Client {Context.ConnectionId}) has joined the chat!";
+        await Clients.Others.SendAsync("ReceiveMessage", "System", joinNotification);
 
-    await base.OnConnectedAsync();
-}
+        Console.WriteLine($"Client connected: {Context.ConnectionId}");
+
+        await base.OnConnectedAsync();
+    }
+
 
     /// <param name="exception">Exception that caused the disconnection, if any.</param>
     public override async Task OnDisconnectedAsync(Exception? exception)
